@@ -172,10 +172,6 @@ function clean(){
     return del(['dist/css', 'dist/js']);
 }
 
-function build(){
-    gulp.series(clean, gulp.series(styles, scripts));
-}
-
 // Should watch run a build first?
 function watch(){
     // Watch .scss files
@@ -192,5 +188,5 @@ exports.modules = gulp.series(modules);
 exports.jquery = gulp.series(jquery);
 exports.scripts = gulp.series(scripts);
 exports.clean = gulp.series(clean);
-exports.default = gulp.series(build);
+exports.default = gulp.series(clean, gulp.series(styles, scripts));
 exports.watch = gulp.series(watch);
