@@ -140,7 +140,7 @@ function modules(){
     gutil.log("Modules complete");
 }
 
-// make jquery wrapper
+//make jquery wrapper
 function jquery(){
     return gulp.src('src/js/jquery_wrapper.js')
     .pipe(insert.prepend(version + "\n"))
@@ -173,16 +173,16 @@ function clean(){
 }
 
 function build(){
-    gulp.series(clean, scripts);
+    gulp.series(clean, gulp.series(styles, scripts));
 }
 
 // Should watch run a build first?
 function watch(){
     // Watch .scss files
-    gulp.watch("src/scss/**/*.scss", styles);
+    gulp.watch('src/scss/**/*.scss', styles);
 
     // Watch .js files
-    gulp.watch("src/js/**/*.js", scripts);
+    gulp.watch('src/js/**/*.js', scripts);
 }
 
 exports.tabulator = gulp.series(tabulator);
@@ -192,5 +192,5 @@ exports.modules = gulp.series(modules);
 exports.jquery = gulp.series(jquery);
 exports.scripts = gulp.series(scripts);
 exports.clean = gulp.series(clean);
-exports.default = gulp.series(clean, gulp.series(styles, scripts));
+exports.default = gulp.series(build);
 exports.watch = gulp.series(watch);
