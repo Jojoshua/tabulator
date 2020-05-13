@@ -176,12 +176,13 @@ function build(){
     gulp.series(clean, scripts);
 }
 
+// Should watch run a build first?
 function watch(){
     // Watch .scss files
-    gulp.watch("src/scss/**/*.scss", gulp.series("styles"));
+    gulp.watch("src/scss/**/*.scss", styles);
 
     // Watch .js files
-    gulp.watch("src/js/**/*.js", gulp.series("tabulator", "core", "modules", "jquery"));
+    gulp.watch("src/js/**/*.js", scripts);
 }
 
 exports.tabulator = gulp.series(tabulator);
