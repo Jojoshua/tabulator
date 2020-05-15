@@ -186,7 +186,7 @@ Persistence.prototype.mergeDefinition = function(oldCols, newCols){
 
 		if(from){
 
-			if(self.config.columns === true){
+			if(self.config.columns === true || self.config.columns == undefined){
 				keys =  Object.keys(from);
 				keys.push("width");
 			}else{
@@ -338,7 +338,7 @@ Persistence.prototype.parseColumns = function(columns){
 		}else{
 			defStore.field = column.getField();
 
-			if(self.config.columns === true){
+			if(self.config.columns === true || self.config.columns == undefined){
 				keys =  Object.keys(colDef);
 				keys.push("width");
 			}else{
@@ -379,7 +379,7 @@ Persistence.prototype.readers = {
 		var cookie = document.cookie,
 		key = id + "-" + type,
 		cookiePos = cookie.indexOf(key + "="),
-		end;
+		end, data;
 
 		//if cookie exists, decode and load column data into tabulator
 		if(cookiePos > -1){
@@ -408,7 +408,7 @@ Persistence.prototype.writers = {
 
 		expireDate.setDate(expireDate.getDate() + 10000);
 
-		document.cookie = id + "_" + type + "=" + JSON.stringify(data) + "; expires=" + expireDate.toUTCString();
+		document.cookie = id + "-" + type + "=" + JSON.stringify(data) + "; expires=" + expireDate.toUTCString();
 	}
 };
 

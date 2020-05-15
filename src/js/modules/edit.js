@@ -95,6 +95,7 @@ Edit.prototype.cancelEdit = function(){
 
 		this.clearEditor();
 		cell.setValueActual(cell.getValue());
+		cell.cellRendered();
 
 		if(cell.column.cellEvents.cellEditCancelled){
 			cell.column.cellEvents.cellEditCancelled.call(this.table, component);
@@ -113,7 +114,7 @@ Edit.prototype.bindEditor = function(cell){
 
 	element.addEventListener("click", function(e){
 		if(!element.classList.contains("tabulator-editing")){
-			element.focus();
+			element.focus({preventScroll: true});
 		}
 	});
 
@@ -131,7 +132,7 @@ Edit.prototype.bindEditor = function(cell){
 Edit.prototype.focusCellNoEvent = function(cell, block){
 	this.recursionBlock = true;
 	if(!(block && this.table.browser === "ie")){
-		cell.getElement().focus();
+		cell.getElement().focus({preventScroll: true});
 	}
 	this.recursionBlock = false;
 };
@@ -140,6 +141,25 @@ Edit.prototype.editCell = function(cell, forceEdit){
 	this.focusCellNoEvent(cell);
 	this.edit(cell, false, forceEdit);
 };
+
+
+Edit.prototype.focusScrollAdjust = function(cell){
+	if(this.table.rowManager.getRenderMode() == "virtual"){
+		var topEdge = this.table.rowManager.element.scrollTop,
+		bottomEdge = this.table.rowManager.element.clientHeight + this.table.rowManager.element.scrollTop,
+		rowEl = cell.row.getElement(),
+		offset = rowEl.offsetTop;
+
+		if(rowEl.offsetTop < topEdge){
+			this.table.rowManager.element.scrollTop -= (topEdge - rowEl.offsetTop);
+		}else{
+			if(rowEl.offsetTop + rowEl.offsetHeight  > bottomEdge){
+				this.table.rowManager.element.scrollTop += (rowEl.offsetTop + rowEl.offsetHeight - bottomEdge);
+			}
+		}
+	}
+};
+
 
 Edit.prototype.edit = function(cell, e, forceEdit){
 	var self = this,
@@ -158,7 +178,6 @@ Edit.prototype.edit = function(cell, e, forceEdit){
 
 	//handle successfull value change
 	function success(value){
-
 		if(self.currentCell === cell){
 			var valid = true;
 
@@ -227,6 +246,8 @@ Edit.prototype.edit = function(cell, e, forceEdit){
 
 			self.currentCell = cell;
 
+			this.focusScrollAdjust(cell);
+
 			component = cell.getComponent();
 
 			if(this.mouseClick){
@@ -291,6 +312,88 @@ Edit.prototype.edit = function(cell, e, forceEdit){
 	}
 };
 
+Edit.prototype.maskInput = function(el, options){
+	var mask = options.mask,
+	maskLetter = typeof options.maskLetterChar !== "undefined" ? options.maskLetterChar : "A",
+	maskNumber = typeof options.maskNumberChar !== "undefined" ? options.maskNumberChar : "9",
+	maskWildcard = typeof options.maskWildcardChar !== "undefined" ? options.maskWildcardChar : "*",
+	success = false;
+
+	function fillSymbols(index){
+		var symbol = mask[index];
+		if(typeof symbol !== "undefined" && symbol !== maskWildcard && symbol !== maskLetter && symbol !== maskNumber){
+			el.value = el.value + "" + symbol;
+			fillSymbols(index+1);
+		}
+	}
+
+	el.addEventListener("keydown", (e) => {
+		var index = el.value.length,
+		char = e.key;
+
+		if(e.keyCode > 46){
+			if(index >= mask.length){
+				e.preventDefault();
+				e.stopPropagation();
+				success = false;
+				return false;
+			}else{
+				switch(mask[index]){
+					case maskLetter:
+					if(char.toUpperCase() == char.toLowerCase()){
+						e.preventDefault();
+						e.stopPropagation();
+						success = false;
+						return false;
+					}
+					break;
+
+					case maskNumber:
+					if(isNaN(char)){
+						e.preventDefault();
+						e.stopPropagation();
+						success = false;
+						return false;
+					}
+					break;
+
+					case maskWildcard:
+					break;
+
+					default:
+					if(char !== mask[index]){
+						e.preventDefault();
+						e.stopPropagation();
+						success = false;
+						return false;
+					}
+				}
+			}
+
+			success = true;
+		}
+
+		return;
+	});
+
+	el.addEventListener("keyup", (e) => {
+		if(e.keyCode > 46){
+			if(options.maskAutoFill){
+				fillSymbols(el.value.length);
+			}
+		}
+	});
+
+
+	if(!el.placeholder){
+		el.placeholder = mask;
+	}
+
+	if(options.maskAutoFill){
+		fillSymbols(el.value.length);
+	}
+};
+
 //default data editors
 Edit.prototype.editors = {
 
@@ -321,13 +424,12 @@ Edit.prototype.editors = {
 		input.value = typeof cellValue !== "undefined" ? cellValue : "";
 
 		onRendered(function(){
-			input.focus();
+			input.focus({preventScroll: true});
 			input.style.height = "100%";
 		});
 
 		function onChange(e){
-			if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value != cellValue){
-
+			if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue){
 				if(success(input.value)){
 					cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
 				}
@@ -343,6 +445,7 @@ Edit.prototype.editors = {
 		//submit new value on enter
 		input.addEventListener("keydown", function(e){
 			switch(e.keyCode){
+				// case 9:
 				case 13:
 				onChange(e);
 				break;
@@ -352,6 +455,10 @@ Edit.prototype.editors = {
 				break;
 			}
 		});
+
+		if(editorParams.mask){
+			this.table.modules.edit.maskInput(input, editorParams);
+		}
 
 		return input;
 	},
@@ -389,13 +496,13 @@ Edit.prototype.editors = {
         input.value = value;
 
         onRendered(function(){
-        	input.focus();
+        	input.focus({preventScroll: true});
         	input.style.height = "100%";
         });
 
         function onChange(e){
 
-        	if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value != cellValue){
+        	if(((cellValue === null || typeof cellValue === "undefined") && input.value !== "") || input.value !== cellValue){
 
         		if(success(input.value)){
         			cellValue = input.value; //persist value if successfully validated incase editor is used as header filter
@@ -451,6 +558,10 @@ Edit.prototype.editors = {
         	}
         });
 
+        if(editorParams.mask){
+        	this.table.modules.edit.maskInput(input, editorParams);
+        }
+
         return input;
     },
 
@@ -501,7 +612,7 @@ Edit.prototype.editors = {
 			//submit new value on blur
 			input.removeEventListener("blur", blurFunc);
 
-			input.focus();
+			input.focus({preventScroll: true});
 			input.style.height = "100%";
 
 			//submit new value on blur
@@ -515,7 +626,7 @@ Edit.prototype.editors = {
 				value = Number(value);
 			}
 
-			if(value != cellValue){
+			if(value !== cellValue){
 				if(success(value)){
 					cellValue = value; //persist value if successfully validated incase editor is used as header filter
 				}
@@ -545,6 +656,10 @@ Edit.prototype.editors = {
 				break;
 			}
 		});
+
+		if(editorParams.mask){
+			this.table.modules.edit.maskInput(input, editorParams);
+		}
 
 		return input;
 	},
@@ -588,7 +703,7 @@ Edit.prototype.editors = {
     	input.value = cellValue;
 
     	onRendered(function () {
-    		input.focus();
+    		input.focus({preventScroll: true});
     		input.style.height = "100%";
     	});
 
@@ -647,7 +762,7 @@ Edit.prototype.editors = {
 		this.table.rowManager.element.addEventListener("scroll", cancelItem);
 
 		if(Array.isArray(editorParams) || (!Array.isArray(editorParams) && typeof editorParams === "object" && !editorParams.values)){
-			console.warn("DEPRECATION WANRING - values for the select editor must now be passed into the values property of the editorParams object, not as the editorParams object");
+			console.warn("DEPRECATION WARNING - values for the select editor must now be passed into the values property of the editorParams object, not as the editorParams object");
 			editorParams = {values:editorParams};
 		}
 
@@ -870,6 +985,16 @@ Edit.prototype.editors = {
 
 				listEl.style.top = (offset.top + cellEl.offsetHeight) + "px";
 				listEl.style.left = offset.left + "px";
+
+
+				listEl.addEventListener("mousedown", function(e){
+					blurable = false;
+
+					setTimeout(function(){
+						blurable = true;
+					}, 10);
+				});
+
 				document.body.appendChild(listEl);
 			}
 		}
@@ -986,7 +1111,7 @@ Edit.prototype.editors = {
 
 		onRendered(function(){
 			input.style.height = "100%";
-			input.focus();
+			input.focus({preventScroll: true});
 		});
 
 		return input;
@@ -1005,10 +1130,39 @@ Edit.prototype.editors = {
 		allItems = [],
 		displayItems = [],
 		values = [],
-		currentItem = {},
+		currentItem = false,
 		blurable = true;
 
 		this.table.rowManager.element.addEventListener("scroll", cancelItem);
+
+		//style input
+		input.setAttribute("type", "search");
+
+		input.style.padding = "4px";
+		input.style.width = "100%";
+		input.style.boxSizing = "border-box";
+
+		if(editorParams.elementAttributes && typeof editorParams.elementAttributes == "object"){
+			for (let key in editorParams.elementAttributes){
+				if(key.charAt(0) == "+"){
+					key = key.slice(1);
+					input.setAttribute(key, input.getAttribute(key) + editorParams.elementAttributes["+" + key]);
+				}else{
+					input.setAttribute(key, editorParams.elementAttributes[key]);
+				}
+			}
+		}
+
+		//style list element
+		listEl.classList.add("tabulator-edit-select-list");
+
+		listEl.addEventListener("mousedown", function(e){
+			blurable = false;
+
+			setTimeout(function(){
+				blurable = true;
+			}, 10);
+		});
 
 		function getUniqueColumnValues(field){
 			var output = {},
@@ -1047,7 +1201,76 @@ Edit.prototype.editors = {
 			return output;
 		}
 
-		function parseItems(inputValues, curentValue){
+		function filterList(term, intialLoad){
+			var matches = [],
+			values, items, searchEl;
+
+			//lookup base values list
+			if(editorParams.values === true){
+				values = getUniqueColumnValues();
+			}else if(typeof editorParams.values === "string"){
+				values = getUniqueColumnValues(editorParams.values);
+			}else{
+				values = editorParams.values || [];
+			}
+
+			if(editorParams.searchFunc){
+				matches = editorParams.searchFunc(term, values);
+
+				if(matches instanceof Promise){
+
+					addNotice(typeof editorParams.searchingPlaceholder !== "undefined" ? editorParams.searchingPlaceholder : "Searching...");
+
+					matches.then((result) => {
+						fillListIfNotEmpty(parseItems(result), intialLoad);
+					}).catch((err) => {
+						console.err("error in autocomplete search promise:", err);
+					});
+
+				}else{
+					fillListIfNotEmpty(parseItems(matches), intialLoad);
+				}
+			}else{
+				items = parseItems(values);
+
+				if(term === ""){
+					if(editorParams.showListOnEmpty){
+						matches = items;
+					}
+				}else{
+					items.forEach(function(item){
+						if(item.value !== null || typeof item.value !== "undefined"){
+							if(String(item.value).toLowerCase().indexOf(String(term).toLowerCase()) > -1 || String(item.title).toLowerCase().indexOf(String(term).toLowerCase()) > -1){
+								matches.push(item);
+							}
+						}
+					});
+				}
+
+				fillListIfNotEmpty(matches, intialLoad);
+			}
+		}
+
+		function addNotice(notice){
+			var searchEl = document.createElement("div");
+
+			clearList();
+
+			if(notice !== false){
+				searchEl.classList.add("tabulator-edit-select-list-notice");
+				searchEl.tabIndex = 0;
+
+				if(notice instanceof Node){
+					searchEl.appendChild(notice);
+				}else{
+					searchEl.innerHTML = notice;
+				}
+
+				listEl.appendChild(searchEl);
+			}
+		}
+
+		function parseItems(inputValues){
 			var itemList = [];
 
 			if(Array.isArray(inputValues)){
@@ -1055,12 +1278,7 @@ Edit.prototype.editors = {
 					var item = {
 						title:editorParams.listItemFormatter ? editorParams.listItemFormatter(value, value) : value,
 						value:value,
-						element:false,
 					};
-
-					if(item.value === curentValue || (!isNaN(parseFloat(item.value)) && !isNaN(parseFloat(item.value)) && parseFloat(item.value) === parseFloat(curentValue))){
-						setCurrentItem(item);
-					}
 
 					itemList.push(item);
 				});
@@ -1069,80 +1287,35 @@ Edit.prototype.editors = {
 					var item = {
 						title:editorParams.listItemFormatter ? editorParams.listItemFormatter(key, inputValues[key]) : inputValues[key],
 						value:key,
-						element:false,
 					};
-
-					if(item.value === curentValue || (!isNaN(parseFloat(item.value)) && !isNaN(parseFloat(item.value)) && parseFloat(item.value) === parseFloat(curentValue))){
-						setCurrentItem(item);
-					}
 
 					itemList.push(item);
 				}
 			}
 
-			if(editorParams.searchFunc){
-				itemList.forEach(function(item){
-					item.search = {
-						title:item.title,
-						value:item.value,
-					};
-				});
-			}
-
-			allItems = itemList;
+			return itemList;
 		}
 
-		function filterList(term, intialLoad){
-			var matches = [],
-			searchObjs = [],
-			searchResults = [];
+		function clearList(){
+			while(listEl.firstChild) listEl.removeChild(listEl.firstChild);
+		}
 
-			if(editorParams.searchFunc){
-
-				allItems.forEach(function(item){
-					searchObjs.push(item.search);
-				});
-
-				searchResults = editorParams.searchFunc(term, searchObjs);
-
-				searchResults.forEach(function(result){
-					var match = allItems.find(function(item){
-						return item.search === result;
-					});
-
-					if(match){
-						matches.push(match);
-					}
-				});
+		function fillListIfNotEmpty(items, intialLoad){
+			if(items.length){
+				fillList(items, intialLoad);
 			}else{
-				if(term === ""){
-
-					if(editorParams.showListOnEmpty){
-						allItems.forEach(function(item){
-							matches.push(item);
-						});
-					}
-				}else{
-					allItems.forEach(function(item){
-
-						if(item.value !== null || typeof item.value !== "undefined"){
-							if(String(item.value).toLowerCase().indexOf(String(term).toLowerCase()) > -1 || String(item.title).toLowerCase().indexOf(String(term).toLowerCase()) > -1){
-								matches.push(item);
-							}
-						}
-					});
+				if(editorParams.emptyPlaceholder){
+					addNotice(editorParams.emptyPlaceholder);
 				}
 			}
-
-			displayItems = matches;
-
-			fillList(intialLoad);
 		}
 
-		function fillList(intialLoad){
+		function fillList(items, intialLoad){
 			var current = false;
 
-			while(listEl.firstChild) listEl.removeChild(listEl.firstChild);
+			clearList();
+
+			displayItems = items;
 
 			displayItems.forEach(function(item){
 				var el = item.element;
@@ -1153,12 +1326,12 @@ Edit.prototype.editors = {
 					el.tabIndex = 0;
 					el.innerHTML = item.title;
 
-					el.addEventListener("click", function(){
+					el.addEventListener("click", function(e){
 						setCurrentItem(item);
 						chooseItem();
 					});
 
-					el.addEventListener("mousedown", function(){
+					el.addEventListener("mousedown", function(e){
 						blurable = false;
 
 						setTimeout(function(){
@@ -1188,20 +1361,6 @@ Edit.prototype.editors = {
 			}
 		}
 
-
-		function setCurrentItem(item, showInputValue){
-			if(currentItem && currentItem.element){
-				currentItem.element.classList.remove("active");
-			}
-
-			currentItem = item;
-
-			if(item && item.element){
-				item.element.classList.add("active");
-			}
-		}
-
-
 		function chooseItem(){
 			hideList();
 
@@ -1228,24 +1387,9 @@ Edit.prototype.editors = {
 			}
 		}
 
-		function cancelItem(){
-			hideList();
-			cancel();
-		}
-
 		function showList(){
 			if(!listEl.parentNode){
 				while(listEl.firstChild) listEl.removeChild(listEl.firstChild);
-
-				if(editorParams.values === true){
-					values = getUniqueColumnValues();
-				}else if(typeof editorParams.values === "string"){
-					values = getUniqueColumnValues(editorParams.values);
-				}else{
-					values = editorParams.values || [];
-				}
-
-				parseItems(values, initialValue);
 
 				var offset = Tabulator.prototype.helpers.elOffset(cellEl);
 
@@ -1257,6 +1401,18 @@ Edit.prototype.editors = {
 			}
 		}
 
+		function setCurrentItem(item, showInputValue){
+			if(currentItem && currentItem.element){
+				currentItem.element.classList.remove("active");
+			}
+
+			currentItem = item;
+
+			if(item && item.element){
+				item.element.classList.add("active");
+			}
+		}
+
 		function hideList(){
 			if(listEl.parentNode){
 				listEl.parentNode.removeChild(listEl);
@@ -1265,26 +1421,14 @@ Edit.prototype.editors = {
 			removeScrollListener();
 		}
 
-		function removeScrollListener() {
-			self.table.rowManager.element.removeEventListener("scroll", cancelItem);
+
+		function cancelItem(){
+			hideList();
+			cancel();
 		}
 
-		//style input
-		input.setAttribute("type", "search");
-
-		input.style.padding = "4px";
-		input.style.width = "100%";
-		input.style.boxSizing = "border-box";
-
-		if(editorParams.elementAttributes && typeof editorParams.elementAttributes == "object"){
-			for (let key in editorParams.elementAttributes){
-				if(key.charAt(0) == "+"){
-					key = key.slice(1);
-					input.setAttribute(key, input.getAttribute(key) + editorParams.elementAttributes["+" + key]);
-				}else{
-					input.setAttribute(key, editorParams.elementAttributes[key]);
-				}
-			}
+		function removeScrollListener() {
+			self.table.rowManager.element.removeEventListener("scroll", cancelItem);
 		}
 
 		//allow key based navigation
@@ -1299,7 +1443,6 @@ Edit.prototype.editors = {
 					e.stopImmediatePropagation();
 					e.stopPropagation();
 					e.preventDefault();
-
 
 					if(index > 0){
 						setCurrentItem(displayItems[index - 1]);
@@ -1387,14 +1530,15 @@ Edit.prototype.editors = {
 			filterList(value, true);
 		});
 
-		//style list element
-		listEl = document.createElement("div");
-		listEl.classList.add("tabulator-edit-select-list");
 
 		onRendered(function(){
 			input.style.height = "100%";
-			input.focus();
+			input.focus({preventScroll: true});
 		});
+
+		if(editorParams.mask){
+			this.table.modules.edit.maskInput(input, editorParams);
+		}
 
 		return input;
 	},
@@ -1643,13 +1787,16 @@ Edit.prototype.editors = {
 		element.addEventListener("keydown", function(e){
 			switch(e.keyCode){
 				case 39: //right arrow
+				e.preventDefault();
 				bar.style.width = (bar.clientWidth + element.clientWidth/100) + "px";
 				break;
 
 				case 37: //left arrow
+				e.preventDefault();
 				bar.style.width = (bar.clientWidth - element.clientWidth/100) + "px";
 				break;
 
+				case 9: //tab
 				case 13: //enter
 				updateValue();
 				break;
@@ -1700,7 +1847,7 @@ Edit.prototype.editors = {
 
 		if(this.table.browser != "firefox"){ //prevent blur issue on mac firefox
 			onRendered(function(){
-				input.focus();
+				input.focus({preventScroll: true});
 			});
 		}
 

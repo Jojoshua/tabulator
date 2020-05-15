@@ -1,113 +1,109 @@
 var gulp = require('gulp'),
-    sass = require('gulp-sass'),
-    autoprefixer = require('gulp-autoprefixer'),
-    cssnano = require('gulp-cssnano'),
-    uglify = require('gulp-uglify'),
-    rename = require('gulp-rename'),
-    concat = require('gulp-concat'),
-    del = require('del');
+sass = require('gulp-sass'),
+autoprefixer = require('gulp-autoprefixer'),
+cssnano = require('gulp-cssnano'),
+uglify = require('gulp-uglify'),
+rename = require('gulp-rename'),
+concat = require('gulp-concat'),
+del = require('del');
 include = require('gulp-include'),
-    sourcemaps = require('gulp-sourcemaps'),
-    babel = require('gulp-babel'),
-    plumber = require('gulp-plumber'),
-    gutil = require('gulp-util'),
-    insert = require('gulp-insert'),
-    fs = require('fs');
+sourcemaps = require('gulp-sourcemaps'),
+babel = require('gulp-babel'),
+plumber = require('gulp-plumber'),
+gutil = require('gulp-util'),
+insert = require('gulp-insert'),
+fs = require('fs');
 
-var version_no = "4.5.3",
+var version_no = "4.6.3",
 
-    version = "/* Tabulator v" + version_no + " (c) Oliver Folkerd */\n";
+version = "/* Tabulator v" + version_no + " (c) Oliver Folkerd */\n";
 
 var gulp_src = gulp.src;
-gulp.src = function () {
+gulp.src = function() {
     return gulp_src.apply(gulp, arguments)
-        .pipe(plumber(function (error) {
-            // Output an error message
-            gutil.log(gutil.colors.red('Error (' + error.plugin + '): ' + error.message));
-            // emit the end event, to properly end the task
-            this.emit('end');
+    .pipe(plumber(function(error) {
+        // Output an error message
+        gutil.log(gutil.colors.red('Error (' + error.plugin + '): ' + error.message));
+        // emit the end event, to properly end the task
+        this.emit('end');
         })
-        );
+    );
 };
 
 //build css
-gulp.task('styles', function () {
+function styles(){
     return gulp.src('src/scss/**/tabulator*.scss')
-        .pipe(sourcemaps.init())
-        .pipe(insert.prepend(version + "\n"))
-        .pipe(sass({ outputStyle: 'expanded' }).on('error', sass.logError))
-        .pipe(autoprefixer('last 4 version'))
-        .pipe(gulp.dest('dist/css'))
-        .pipe(rename({ suffix: '.min' }))
-        .pipe(cssnano({ zindex: false }))
-        .pipe(insert.prepend(version))
-        .pipe(sourcemaps.write('.'))
-        .pipe(gulp.dest('dist/css'))
-        .on('end', function () { gutil.log('Styles task complete'); })
-});
-
+    .pipe(sourcemaps.init())
+    .pipe(insert.prepend(version + "\n"))
+    .pipe(sass({outputStyle: 'expanded'}).on('error', sass.logError))
+    .pipe(autoprefixer('last 4 version'))
+    .pipe(gulp.dest('dist/css'))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(cssnano({zindex: false}))
+    .pipe(insert.prepend(version))
+    .pipe(sourcemaps.write('.'))
+    .pipe(gulp.dest('dist/css'))
+    .on('end', function(){ gutil.log('Styles task complete'); })
+}
 
 //build tabulator
-gulp.task('tabulator', function () {
+function tabulator(){
     //return gulp.src('src/js/**/*.js')
     return gulp.src('src/js/core_modules.js')
-        .pipe(insert.prepend(version + "\n"))
-        //.pipe(sourcemaps.init())
-        .pipe(include())
-        //.pipe(jshint())
-        // .pipe(jshint.reporter('default'))
-        .pipe(babel({
-            //presets:['es2015']
-            compact: false,
-            presets: [["env", {
-                "targets": {
-                    "browsers": ["last 4 versions"]
-                },
-                loose: true,
-                modules: false,
-            },], {}]
-        }))
-        .pipe(concat('tabulator.js'))
-        .pipe(gulp.dest('dist/js'))
-        .pipe(rename({ suffix: '.min' }))
-        .pipe(uglify())
-        .pipe(insert.prepend(version))
-        // .pipe(sourcemaps.write('.'))
-        .pipe(gulp.dest('dist/js'))
-        //.pipe(notify({ message: 'Scripts task complete' }));
-        .on('end', function () { gutil.log('Tabulator Complete'); })
+    .pipe(insert.prepend(version + "\n"))
+    //.pipe(sourcemaps.init())
+    .pipe(include())
+    //.pipe(jshint())
+    // .pipe(jshint.reporter('default'))
+    .pipe(babel({
+        //presets:['es2015']
+        compact: false,
+        presets: [["env",{
+            "targets": {
+              "browsers": ["last 4 versions"]
+            },
+            loose: true,
+            modules: false,
+        }, ], {  }]
+      }))
+    .pipe(concat('tabulator.js'))
+    .pipe(gulp.dest('dist/js'))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(uglify())
+    .pipe(insert.prepend(version))
+    // .pipe(sourcemaps.write('.'))
+    .pipe(gulp.dest('dist/js'))
+    //.pipe(notify({ message: 'Scripts task complete' }));
+    .on('end', function(){ gutil.log('Tabulator Complete'); })
     //.on("error", console.log)
-});
-
+}
 
 //simplified core js
-gulp.task('core', function () {
+function core(){
     return gulp.src('src/js/core.js')
-        .pipe(insert.prepend(version + "\n"))
-        .pipe(include())
-        .pipe(babel({
-            presets: [["env", {
-                "targets": {
-                    "browsers": ["last 4 versions"]
-                },
-                loose: true,
-                modules: false,
-            }]
-            ]
+    .pipe(insert.prepend(version + "\n"))
+    .pipe(include())
+    .pipe(babel({
+        presets: [["env", {
+          "targets": {
+            "browsers": ["last 4 versions"]
+        },
+        loose: true,
+        modules: false,
+        }]
+        ]
         }))
-        .pipe(concat('tabulator_core.js'))
-        .pipe(gulp.dest('dist/js'))
-        .pipe(rename({ suffix: '.min' }))
-        .pipe(uglify())
-        .pipe(insert.prepend(version))
-        .pipe(gulp.dest('dist/js'))
-        .on('end', function () { gutil.log('Core complete'); })
-});
+    .pipe(concat('tabulator_core.js'))
+    .pipe(gulp.dest('dist/js'))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(uglify())
+    .pipe(insert.prepend(version))
+    .pipe(gulp.dest('dist/js'))
+    .on('end', function(){ gutil.log('Core complete'); })
+}
 
 
-
-//make jquery wrapper
-gulp.task('modules', function (done) {
+function modules(){
 
     var path = __dirname + "/src/js/modules/";
 
@@ -115,82 +111,82 @@ gulp.task('modules', function (done) {
 
     var core = ["layout.js", "localize.js", "comms.js"];
 
-    files.forEach(function (file, index) {
+    files.forEach(function(file, index){
 
-        if (!core.includes(file)) {
+        if(!core.includes(file)){
             return gulp.src('src/js/modules/' + file)
-                .pipe(insert.prepend(version + "\n"))
-                .pipe(include())
-                .pipe(babel({
-                    presets: [["env", {
-                        "targets": {
-                            "browsers": ["last 4 versions"]
-                        },
-                        loose: true,
-                        modules: false,
-                    }]
-                    ]
-                }))
-                .pipe(concat(file))
-                .pipe(gulp.dest('dist/js/modules/'))
-                .pipe(rename({ suffix: '.min' }))
-                .pipe(uglify())
-                .pipe(insert.prepend(version))
-                .pipe(gulp.dest('dist/js/modules/'))
-        }
-    });
-
-    gutil.log("Modules complete");
-    done();
-});
-
-//make jquery wrapper
-gulp.task('jquery', function () {
-    return gulp.src('src/js/jquery_wrapper.js')
-        .pipe(insert.prepend(version + "\n"))
-        .pipe(include())
-        .pipe(babel({
-            presets: [["env", {
-                "targets": {
+            .pipe(insert.prepend(version + "\n"))
+            .pipe(include())
+            .pipe(babel({
+                presets: [["env", {
+                  "targets": {
                     "browsers": ["last 4 versions"]
                 },
                 loose: true,
                 modules: false,
-            }]
-            ]
+                }]
+                ]
+                }))
+            .pipe(concat(file))
+            .pipe(gulp.dest('dist/js/modules/'))
+            .pipe(rename({suffix: '.min'}))
+            .pipe(uglify())
+            .pipe(insert.prepend(version))
+            .pipe(gulp.dest('dist/js/modules/'))
+            .on('end', function(){gutil.log('module ' + file + ' complete')})
+        }
+        });
+
+    gutil.log("Modules complete");
+}
+
+//make jquery wrapper
+function jquery(){
+    return gulp.src('src/js/jquery_wrapper.js')
+    .pipe(insert.prepend(version + "\n"))
+    .pipe(include())
+    .pipe(babel({
+        presets: [["env", {
+          "targets": {
+            "browsers": ["last 4 versions"]
+        },
+        loose: true,
+        modules: false,
+        }]
+        ]
         }))
-        .pipe(concat('jquery_wrapper.js'))
-        .pipe(gulp.dest('dist/js'))
-        .pipe(rename({ suffix: '.min' }))
-        .pipe(uglify())
-        .pipe(insert.prepend(version))
-        .pipe(gulp.dest('dist/js'))
-        .on('end', function () { gutil.log('jQuery wrapper complete'); })
+    .pipe(concat('jquery_wrapper.js'))
+    .pipe(gulp.dest('dist/js'))
+    .pipe(rename({suffix: '.min'}))
+    .pipe(uglify())
+    .pipe(insert.prepend(version))
+    .pipe(gulp.dest('dist/js'))
+    .on('end', function(){ gutil.log('jQuery wrapper complete'); })
+}
 
-});
+function scripts(){
+    return Promise.all([tabulator(), core(), modules(), jquery()]);
+}
 
-
-gulp.task('scripts', function () {
-    gulp.start('tabulator');
-    gulp.start('core');
-    gulp.start('modules');
-    gulp.start('jquery');
-});
-
-gulp.task('clean', function () {
+function clean(){
     return del(['dist/css', 'dist/js']);
-});
+}
 
-
-gulp.task(
-    "default",
-    gulp.series("clean", gulp.series("tabulator", "core", "modules", "jquery", "styles"), async function () { })
-);
-
-gulp.task("watch", function () {
+// Should watch run a build first?
+function watch(){
     // Watch .scss files
-    gulp.watch("src/scss/**/*.scss", gulp.series("styles"));
+    gulp.watch('src/scss/**/*.scss', styles);
 
     // Watch .js files
-    gulp.watch("src/js/**/*.js", gulp.series("tabulator", "core", "modules", "jquery"));
-});
+    gulp.watch('src/js/**/*.js', scripts);
+}
+
+exports.tabulator = gulp.series(tabulator);
+exports.styles = gulp.series(styles);
+exports.core = gulp.series(core);
+exports.modules = gulp.series(modules);
+exports.jquery = gulp.series(jquery);
+exports.scripts = gulp.series(scripts);
+exports.clean = gulp.series(clean);
+exports.default = gulp.series(clean, gulp.series(styles, scripts));
+exports.watch = gulp.series(watch);

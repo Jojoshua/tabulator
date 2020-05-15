@@ -4,6 +4,7 @@ var Download = function(table){
 	this.columnsByIndex = []; //hold columns in their order in the table
 	this.columnsByField = {}; //hold columns with lookup by field name
 	this.config = {};
+	this.active = false;
 };
 
 //trigger file download
@@ -11,6 +12,7 @@ Download.prototype.download = function(type, filename, options, active, intercep
 	var self = this,
 	downloadFunc = false;
 	this.processConfig();
+	this.active = active;
 
 	function buildLink(data, mime){
 		if(interceptCallback){
@@ -47,6 +49,7 @@ Download.prototype.processConfig = function(){
 		columnGroups:true,
 		rowGroups:true,
 		columnCalcs:true,
+		dataTree:true,
 	};
 
 	if(this.table.options.downloadConfig){
@@ -55,9 +58,7 @@ Download.prototype.processConfig = function(){
 		}
 	}
 
-	if (config.rowGroups && this.table.options.groupBy && this.table.modExists("groupRows")){
-		this.config.rowGroups = true;
-	}
+	this.config.rowGroups = config.rowGroups && this.table.options.groupBy && this.table.modExists("groupRows");
 
 	if (config.columnGroups && this.table.columnManager.columns.length != this.table.columnManager.columnsByIndex.length){
 		this.config.columnGroups = true;
@@ -65,6 +66,10 @@ Download.prototype.processConfig = function(){
 
 	if (config.columnCalcs && this.table.modExists("columnCalcs")){
 		this.config.columnCalcs = true;
+	}
+
+	if (config.dataTree && this.table.options.dataTree && this.table.modExists("dataTree")){
+		this.config.dataTree = true;
 	}
 };
 
@@ -197,6 +202,9 @@ Download.prototype.processData = function(active){
 		});
 
 	}else{
+		if(this.config.dataTree){
+			active = active = "active" ? "display" : active;
+		}
 		data = self.table.rowManager.getData(active, "download");
 	}
 
@@ -304,7 +312,7 @@ Download.prototype.getFieldValue = function(field, data){
 Download.prototype.commsReceived = function(table, action, data){
 	switch(action){
 		case "intercept":
-		this.download(data.type, "", data.options, data.intercept);
+		this.download(data.type, "", data.options, data.active, data.intercept);
 		break;
 	}
 };
@@ -906,6 +914,7 @@ Download.prototype.downloaders = {
 					this.table.modules.comms.send(options.sheets[sheet], "download", "intercept",{
 						type:"xlsx",
 						options:{sheetOnly:true},
+						active:self.active,
 						intercept:function(data){
 							workbook.Sheets[sheet] = data;
 						}
@@ -935,8 +944,8 @@ Download.prototype.downloaders = {
 	},
 
 	html:function(columns, data, options, setFileContents, config){
-		if(this.table.modExists("htmlTableExport", true)){
-			setFileContents(this.table.modules.htmlTableExport.getHtml(true, options.style, config), "text/html");
+		if(this.table.modExists("export", true)){
+			setFileContents(this.table.modules.export.getHtml(true, options.style, config), "text/html");
 		}
 	}
 

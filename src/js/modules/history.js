@@ -89,7 +89,7 @@ History.prototype.undoers = {
 	},
 
 	rowMove: function(action){
-		this.table.rowManager.moveRowActual(action.component, this.table.rowManager.rows[action.data.pos], false);
+		this.table.rowManager.moveRowActual(action.component, this.table.rowManager.rows[action.data.posFrom], !action.data.after);
 		this.table.rowManager.redraw();
 	},
 };
@@ -115,7 +115,7 @@ History.prototype.redoers = {
 	},
 
 	rowMove: function(action){
-		this.table.rowManager.moveRowActual(action.component, this.table.rowManager.rows[action.data.pos], false);
+		this.table.rowManager.moveRowActual(action.component, this.table.rowManager.rows[action.data.posTo], action.data.after);
 		this.table.rowManager.redraw();
 	},
 };

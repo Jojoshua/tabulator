@@ -63,6 +63,7 @@ Keybindings.prototype.mapBinding = function(action, symbolsList){
 		keys: [],
 		ctrl: false,
 		shift: false,
+		meta: false,
 	};
 
 	var symbols = symbolsList.toString().toLowerCase().split(" ").join("").split("+");
@@ -75,6 +76,10 @@ Keybindings.prototype.mapBinding = function(action, symbolsList){
 
 			case "shift":
 			binding.shift = true;
+			break;
+
+			case "meta":
+			binding.meta = true;
 			break;
 
 			default:
@@ -141,7 +146,7 @@ Keybindings.prototype.checkBinding = function(e, binding){
 	var self = this,
 	match = true;
 
-	if(e.ctrlKey == binding.ctrl && e.shiftKey == binding.shift){
+	if(e.ctrlKey == binding.ctrl && e.shiftKey == binding.shift && e.metaKey == binding.meta){
 		binding.keys.forEach(function(key){
 			var index = self.pressedKeys.indexOf(key);
 
@@ -266,6 +271,9 @@ Keybindings.prototype.actions = {
 
 				if(!nav.next()){
 					if(newRow){
+
+						cell.getElement().firstChild.blur();
+
 						if(newRow === true){
 							newRow = this.table.addRow({})
 						}else{
@@ -277,7 +285,9 @@ Keybindings.prototype.actions = {
 						}
 
 						newRow.then(() => {
-							nav.next();
+							setTimeout(() => {
+								nav.next();
+							})
 						});
 					}
 				}
@@ -366,7 +376,7 @@ Keybindings.prototype.actions = {
 	copyToClipboard:function(e){
 		if(!this.table.modules.edit.currentCell){
 			if(this.table.modExists("clipboard", true)){
-				this.table.modules.clipboard.copy(!this.table.options.selectable || this.table.options.selectable == "highlight" ? "active" : "selected", null, null, null, true);
+				this.table.modules.clipboard.copy(false, true);
 			}
 		}
 	},

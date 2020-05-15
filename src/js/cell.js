@@ -113,10 +113,30 @@ Cell.prototype._configureCell = function(){
 	var self = this,
 	cellEvents = self.column.cellEvents,
 	element = self.element,
-	field = this.column.getField();
+	field = this.column.getField(),
+	vertAligns = {
+		top:"flex-start",
+		bottom:"flex-end",
+		middle:"center",
+	},
+	hozAligns = {
+		left:"flex-start",
+		right:"flex-end",
+		center:"center",
+	};
 
 	//set text alignment
 	element.style.textAlign = self.column.hozAlign;
+
+	if(self.column.vertAlign){
+		element.style.display = "inline-flex";
+
+		element.style.alignItems = vertAligns[self.column.vertAlign] || "";
+
+		if(self.column.hozAlign){
+			element.style.justifyContent = hozAligns[self.column.hozAlign] || "";
+		}
+	}
 
 	if(field){
 		element.setAttribute("tabulator-field", field);
@@ -190,6 +210,13 @@ Cell.prototype._bindClickEvents = function(cellEvents){
 		});
 	}else{
 		element.addEventListener("dblclick", function(e){
+
+			if(self.table.modExists("edit")){
+				if (self.table.modules.edit.currentCell === self){
+					return; //prevent instant selection of editor content
+				}
+			}
+
 			e.preventDefault();
 
 			try{
@@ -488,6 +515,8 @@ Cell.prototype.setValue = function(value, mutate){
 			this.column.cellEvents.cellEdited.call(this.table, component);
 		}
 
+		this.cellRendered();
+
 		this.table.options.cellEdited.call(this.table, component);
 
 		this.table.options.dataEdited.call(this.table, this.table.rowManager.getData());
@@ -553,6 +582,11 @@ Cell.prototype.setValueActual = function(value){
 	//set resizable handles
 	if(this.table.options.resizableColumns && this.table.modExists("resizeColumns")){
 		this.table.modules.resizeColumns.initializeColumn("cell", this.column, this.element);
+	}
+
+	//set column menu
+	if(this.column.definition.contextMenu && this.table.modExists("menu")){
+		this.table.modules.menu.initializeCell(this);
 	}
 
 	//handle frozen cells

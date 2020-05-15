@@ -91,14 +91,23 @@ DataTree.prototype.initializeRow = function(row){
 	var childArray = row.getData()[this.field];
 	var isArray = Array.isArray(childArray);
 
-	var children = isArray || (!isArray && typeof childArray === "object" && childArray !== null) ;
+	var children = isArray || (!isArray && typeof childArray === "object" && childArray !== null);
+
+	if(!children && row.modules.dataTree && row.modules.dataTree.branchEl){
+		row.modules.dataTree.branchEl.parentNode.removeChild(row.modules.dataTree.branchEl);
+	}
+
+	if(!children && row.modules.dataTree && row.modules.dataTree.controlEl){
+		row.modules.dataTree.controlEl.parentNode.removeChild(row.modules.dataTree.controlEl);
+	}
+
 
 	row.modules.dataTree = {
-		index:0,
-		open:children ? this.startOpen(row.getComponent(), 0) : false,
-		controlEl:false,
-		branchEl:false,
-		parent:false,
+		index: row.modules.dataTree ? row.modules.dataTree.index : 0,
+		open: children ? (row.modules.dataTree ? row.modules.dataTree.open :this.startOpen(row.getComponent(), 0)) : false,
+		controlEl: row.modules.dataTree && children ? row.modules.dataTree.controlEl : false,
+		branchEl: row.modules.dataTree && children ? row.modules.dataTree.branchEl : false,
+		parent: row.modules.dataTree ? row.modules.dataTree.parent : false,
 		children:children,
 	};
 };
@@ -109,12 +118,23 @@ DataTree.prototype.layoutRow = function(row){
 	el = cell.getElement(),
 	config = row.modules.dataTree;
 
-
 	if(config.branchEl){
-		config.branchEl.parentNode.removeChild(config.branchEl);
+		if(config.branchEl.parentNode){
+			config.branchEl.parentNode.removeChild(config.branchEl);
+		}
+		config.branchEl = false;
+	}
+
+	if(config.controlEl){
+		if(config.controlEl.parentNode){
+			config.controlEl.parentNode.removeChild(config.controlEl);
+		}
+		config.controlEl = false;
 	}
 
 	this.generateControlElement(row, el);
+
+	row.element.classList.add("tabulator-tree-level-" + config.index);
 
 	if(config.index){
 		if(this.branchEl){
@@ -297,6 +317,33 @@ DataTree.prototype.getTreeParent = function(row){
 	return row.modules.dataTree.parent ? row.modules.dataTree.parent.getComponent() : false;
 };
 
+
+DataTree.prototype.getFilteredTreeChildren = function(row){
+	var config = row.modules.dataTree,
+	output = [], children;
+
+	if(config.children){
+
+		if(!Array.isArray(config.children)){
+			config.children = this.generateChildren(row);
+		}
+
+		if(this.table.modExists("filter")){
+			children = this.table.modules.filter.filter(config.children);
+		}else{
+			children = config.children;
+		}
+
+		children.forEach((childRow) => {
+			if(childRow instanceof Row){
+				output.push(childRow);
+			}
+		});
+	}
+
+	return output;
+};
+
 DataTree.prototype.getTreeChildren = function(row){
 	var config = row.modules.dataTree,
 	output = [];
@@ -320,9 +367,7 @@ DataTree.prototype.getTreeChildren = function(row){
 
 DataTree.prototype.checkForRestyle = function(cell){
 	if(!cell.row.cells.indexOf(cell)){
-		if(cell.row.modules.dataTree.children !== false){
-			cell.row.reinitialize();
-		}
+		cell.row.reinitialize();
 	}
 };
 
